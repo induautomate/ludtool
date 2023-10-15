@@ -35,5 +35,9 @@ namespace LogixUploadDownloadTool
         /// Upload could not be correlated.
         /// </summary>
         CanNotCorrelate = 5,
+        /// <summary>
+        /// Controller keyswitch is in an invalid position.
+        /// </summary>
+        ControllerKeyswitchInvalid = 6,
     }
 }

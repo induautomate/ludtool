@@ -86,6 +86,37 @@ use case before using in an industrial environment.
 The developers, contributors, and maintainers of this tool make no warranty, express
 or implied as to the operation of this tool. Use at your own risk.
 
+### Why not use Logix Designer SDK?
+
+There are a few reasons for this, the biggest ones revolve around the Logix Designer
+limitations:
+
+- Logix Designer projects before V31 are not supported
+    - `ludtool` supports versions prior to V31, potentially back to V21.
+- The only supported communication software is FactoryTalk Linx
+	- `ludtool` supports RSLinx
+- Logix Designer SDK uses TCP 53204
+	- `ludtool` does not require firewall rules other than 44818 (Ethernet/IP)
+- Logix Designer SDK is C++
+	- `ludtool` works on .NET 6
+- Logix Designer SDK logs to Windows Event Logs
+	- `ludtool` logs to the console
+	
+Other than those reasons, `ludtool` has expanded access to the project and operations
+that can be done on the ACD file and the online processor. 
+
+### Return Codes
+
+The return codes can be evaluated to determine success/failure:
+
+- 0 = Success
+- 1 = Invalid arguments supplied to the tool
+- 2 = Unknown error occurred
+- 3 = Required Logix version is not installed
+- 4 = File not found
+- 5 = Cannot correlate online project
+- 6 = Invalid keyswitch position
+
 ## Contributing
 
 Want to contribute? The easiest way is to fork this repo and create a pull request!

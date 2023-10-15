@@ -294,8 +294,15 @@ namespace LogixUploadDownloadTool
 
                 ConsoleLog.Log($"Downloading to {controller.CurrentCommPath}");
 
-                ConsoleLog.Verbose("Connectiong to controller...");
+                ConsoleLog.Verbose("Connecting to controller...");
                 controller.GoConnected();
+
+                if (controller.KeySwitchPosition == lgxKeySwitchPositions.lgxKeySwitch_Run)
+                {
+                    ConsoleLog.LogError("Cannot download unless the keyswitch is in Remote or Program.");
+                    controller.GoOffline();
+                    return RuntimeErrorCodes.ControllerKeyswitchInvalid;
+                }
 
                 ConsoleLog.Verbose("Setting the controller mode to program...");
                 controller.Mode = lgxControllerModes.lgxMode_Program;
