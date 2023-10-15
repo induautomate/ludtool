@@ -14,7 +14,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "media", "media", "{1600E90C-3105-4839-896D-857FD5AFEB62}"
 	ProjectSection(SolutionItems) = preProject
-		D:\Downloads\ludtool_download.gif = D:\Downloads\ludtool_download.gif
+		media\ludtool_download.gif = media\ludtool_download.gif
 	EndProjectSection
 EndProject
 Global
