@@ -1,0 +1,9 @@
+{
+  "profiles": {
+    "LogixUploadDownloadTool": {
+      "commandName": "Project",
+      "commandLineArgs": "upload -p \"AB_ETHIP-1\\10.0.0.154\\Backplane\\4\"",
+      "remoteDebugEnabled": false
+    }
+  }
+}
