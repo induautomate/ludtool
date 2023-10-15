@@ -40,9 +40,6 @@ namespace LogixUploadDownloadTool
         /// <returns>Runtime Code</returns>
         static RuntimeErrorCodes UploadIntoExistingFile(UploadOptions options)
         {
-            ConsoleLog.LogError("Uploading into an existing file is not currently supported.");
-            return RuntimeErrorCodes.UnknownError;
-
             LogixServicesLifetimeManager? svcManager = null;
             RSLogix5000ServicesLib.Controller? controller = null;
 
