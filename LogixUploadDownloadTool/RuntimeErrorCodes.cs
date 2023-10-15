@@ -31,5 +31,9 @@ namespace LogixUploadDownloadTool
         /// File not found.
         /// </summary>
         FileNotFound = 4,
+        /// <summary>
+        /// Upload could not be correlated.
+        /// </summary>
+        CanNotCorrelate = 5,
     }
 }

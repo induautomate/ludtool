@@ -29,6 +29,8 @@ also tied to the x86 (32-bit) processor architecture.
 
 ## Downloading an ACD to a Controller
 
+![Downloading...](https://github.com/induautomate/ludtool/blob/master/ludtool_download.gif?raw=true)
+
 To download to the controller, you would supply the tool:
 
 `ludtool.exe download -f <ACDFile.acd>`

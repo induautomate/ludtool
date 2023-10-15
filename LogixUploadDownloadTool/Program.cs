@@ -2,6 +2,7 @@
 using RockwellSoftware.RSLogix5000ServicesDotNet;
 using RSLogix5000RevisionDirectoryLib;
 using RSLogix5000ServicesLib;
+using System;
 using System.ComponentModel.Design;
 using System.Text;
 
@@ -37,6 +38,114 @@ namespace LogixUploadDownloadTool
         /// </summary>
         /// <param name="options">Command line options</param>
         /// <returns>Runtime Code</returns>
+        static RuntimeErrorCodes UploadIntoExistingFile(UploadOptions options)
+        {
+            LogixServicesLifetimeManager? svcManager = null;
+            RSLogix5000ServicesLib.Controller? controller = null;
+            int progress = 0;
+
+            if (!File.Exists(options.Filename))
+            {
+                ConsoleLog.LogError($"The file {options.Filename} could not be found.");
+                return RuntimeErrorCodes.FileNotFound;
+            }
+
+            try
+            {
+                ConsoleLog.Verbose("Getting revision information...");
+                Revision revision = LogixUtilities.GetRevisionFromProjectFile(options.Filename);
+                ConsoleLog.Verbose($"Revision info found, Version {revision.MajorSoftwareVersion}.{revision.MinorSoftwareVersion}");
+
+                ConsoleLog.Verbose("Checking if revision is installed...");
+                if (!LogixUtilities.RequiredVersionIsInstalled(options.Filename))
+                {
+                    ConsoleLog.LogError($"The required Logix version is not installed, requires {revision.MajorSoftwareVersion}.{revision.MinorSoftwareVersion}");
+                    return RuntimeErrorCodes.RequiredVersionNotInstalled;
+                }
+                ConsoleLog.Verbose("Version is installed!");
+
+                ConsoleLog.Log("Please wait, instantiating Logix services (this can take a while)...");
+                svcManager = LogixUtilities.CreateLogixServices(revision);
+
+                ConsoleLog.Verbose("Logix services instantiated, opening file...");
+
+                controller = (RSLogix5000ServicesLib.Controller)svcManager.Services.OpenCopyOf(options.Filename);
+            }
+            catch (Exception ex)
+            {
+                ConsoleLog.LogError($"Exception occurred while instantiating services - {ex.Message}\n{ex.StackTrace}");
+                svcManager?.Release();
+                return RuntimeErrorCodes.UnknownError;
+            }
+
+            try
+            {
+                ConsoleLog.Verbose("Connecting to controller...");
+                controller.GoConnected();
+
+                ConsoleLog.Verbose("Checking correlation status...");
+                if (controller.CanCorrelate(out bool needCorrlateLog, out bool canMerge, out lgxResultCodes status))
+                {
+                    ConsoleLog.Log("Processor returned correlation OK.");
+                }
+                else
+                {
+                    ConsoleLog.LogError($"Processor returned correlation failed, result code {status}");
+                    return RuntimeErrorCodes.CanNotCorrelate;
+                }
+
+                controller.CommLost += () => { ConsoleLog.LogWarning("Communications lost..."); };
+                controller.ConnectedStateChange += (e) => { ConsoleLog.LogWarning($"Connected state change: {e}"); };
+                controller.ForceEnableStateChange += (e) => { ConsoleLog.LogWarning($"Force enabled stage change: {(e ? "Enabled" : "Disabled")}"); };
+                controller.KeySwitchPositionChange += (e) => { ConsoleLog.LogWarning($"Keyswitch Position changed: {e}"); };
+                controller.MajorFaultStateChange += (e) => { ConsoleLog.LogWarning($"Major fault status changed: {(e ? "Faults" : "No Faults")}"); };
+                controller.ModeChange += (e) => { ConsoleLog.LogWarning($"Mode changed: {e}"); };
+                controller.OnlineImageCorrelationLoss += () => { ConsoleLog.LogWarning("Online image correlation lost."); };
+                controller.ProgessChanged += (e) =>
+                {
+                    ConsoleLog.UpdateProgress(e);
+                };
+
+                controller.StatusChanged += (e) => { ConsoleLog.UpdateProgressText(e); };
+
+                ConsoleLog.StartProgressBar("Starting upload...");
+
+                controller.Upload();
+
+                if (options.TagValues)
+                {
+                    controller.UploadTagData();
+                }
+
+                ConsoleLog.StopProgressBar();
+                Console.WriteLine();
+
+                ConsoleLog.Log("Saving project...");
+                controller.Save();
+
+                ConsoleLog.Log("Complete!");
+            }
+            catch (Exception ex)
+            {
+                ConsoleLog.LogError($"Exception occurred while uploading - {ex.Message}\n{ex.StackTrace}");
+                svcManager?.Release();
+                return RuntimeErrorCodes.UnknownError;
+            }
+            finally
+            {
+                ConsoleLog.StopProgressBar();
+                controller?.ForceClose();
+                svcManager?.Release();
+            }     
+
+            return RuntimeErrorCodes.NoError;
+        }
+
+        /// <summary>
+        /// Uploads the controller into an existing file.
+        /// </summary>
+        /// <param name="options">Command line options</param>
+        /// <returns>Runtime code</returns>
         static RuntimeErrorCodes UploadIntoNewFile(UploadOptions options)
         {
             LogixServicesLifetimeManager? svcManager = null;
@@ -66,7 +175,7 @@ namespace LogixUploadDownloadTool
                 lgxProcessorTypes processor = svcManager.Services.GetProjectTypeFromController(options.Path);
                 ConsoleLog.Verbose($"Read {processor} from the online controller...");
 
-                ConsoleLog.Log("Creating the ACD file...");
+                ConsoleLog.Log("Opening the ACD file...");
                 IController controller = (IController)svcManager.Services.Create(options.Filename, lgxProcessorTypes.lgxProcType_Compact5069_L306ER);
 
                 ConsoleLog.Log("Uploading...");
@@ -87,19 +196,9 @@ namespace LogixUploadDownloadTool
             finally
             {
                 svcManager?.Release();
-            }     
+            }
 
             return RuntimeErrorCodes.NoError;
-        }
-
-        /// <summary>
-        /// Uploads the controller into an existing file.
-        /// </summary>
-        /// <param name="options">Command line options</param>
-        /// <returns>Runtime code</returns>
-        static RuntimeErrorCodes UploadIntoExistingFile(UploadOptions options)
-        {
-            return RuntimeErrorCodes.UnknownError;
         }
 
         /// <summary>
@@ -156,15 +255,14 @@ namespace LogixUploadDownloadTool
                 controller.ForceEnableStateChange += (e) => { ConsoleLog.LogWarning($"Force enabled stage change: {(e ? "Enabled" : "Disabled")}"); };
                 controller.KeySwitchPositionChange += (e) => { ConsoleLog.LogWarning($"Keyswitch Position changed: {e}"); };
                 controller.MajorFaultStateChange += (e) => { ConsoleLog.LogWarning($"Major fault status changed: {(e ? "Faults" : "No Faults")}"); };
-                controller.ModeChange  += (e) => { ConsoleLog.LogWarning($"Mode changed: {e}"); };
+                controller.ModeChange += (e) => { ConsoleLog.LogWarning($"Mode changed: {e}"); };
                 controller.OnlineImageCorrelationLoss += () => { ConsoleLog.LogWarning("Online image correlation lost."); };
-                controller.ProgessChanged += (e) => 
-                { 
-                    if (e != progress)
-                        ConsoleLog.Log($"Progress: {e}");
-                    progress = e;
+                controller.ProgessChanged += (e) =>
+                {
+                    ConsoleLog.UpdateProgress(e);
                 };
-                controller.StatusChanged += (e) => { ConsoleLog.Log($"Status changed: {e}"); };
+
+                controller.StatusChanged += (e) => { ConsoleLog.UpdateProgressText(e); };
 
                 if (!string.IsNullOrEmpty(options.Path))
                 {
@@ -180,7 +278,11 @@ namespace LogixUploadDownloadTool
                 ConsoleLog.Verbose("Setting the controller mode to program...");
                 controller.Mode = lgxControllerModes.lgxMode_Program;
 
+                ConsoleLog.StartProgressBar("Downloading...");
+
                 controller.Download(options.ForcesOn, false, mode, true);
+
+                ConsoleLog.StopProgressBar();
 
                 ConsoleLog.Log("Complete!");
             }
@@ -196,6 +298,7 @@ namespace LogixUploadDownloadTool
             }
             finally
             {
+                ConsoleLog.StopProgressBar();
                 ConsoleLog.Verbose("Shutting down Logix...");
                 svcManager?.Release();
             }
